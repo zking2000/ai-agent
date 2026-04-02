@@ -1,0 +1,23 @@
+mode = "api"
+start_page_id = "123456"
+start_url = ""
+max_depth = 2
+max_pages = 20
+output_format = "markdown"
+output_file = "output/summary.md"
+topic = "请总结当前项目相关的背景、范围、关键决策和待办。"
+answer_language = "zh-CN"
+
+[scope]
+allowed_space = "ENG"
+allowed_parent_page_id = "123456"
+allowed_url_prefixes = [
+  "/spaces/ENG/",
+  "/wiki/spaces/ENG/",
+]
+
+[llm]
+enabled = true
+api_style = "auto"
+temperature = 0.2
+max_input_chars = 16000
