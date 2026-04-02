@@ -192,6 +192,7 @@ api_style = "auto"
 ```
 
 `auto` 会优先尝试 `responses` API，再回退到 `chat/completions`，更适合不同模型和本地代理网关的差异。
+当前实现还会对同一接口尝试多种请求体格式，并在必要时去掉 `temperature`，以兼容不同代理对 OpenAI 风格请求的差异。
 
 ## 注意事项
 

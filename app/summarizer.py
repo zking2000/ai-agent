@@ -65,6 +65,19 @@ class Summarizer:
 
         return response.json()
 
+    async def _post_llm_with_variants(
+        self,
+        endpoint: str,
+        payload_variants: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        errors: list[str] = []
+        for index, payload in enumerate(payload_variants, start=1):
+            try:
+                return await self._post_llm(endpoint, payload)
+            except Exception as exc:
+                errors.append(f"variant_{index}: {exc}")
+        raise ValueError(" ; ".join(errors))
+
     @staticmethod
     def _extract_chat_text(data: dict[str, Any]) -> str:
         return (
@@ -89,28 +102,66 @@ class Summarizer:
         return "\n".join(text_chunks).strip()
 
     async def _call_chat_completions(self, prompt: str, user_content: str) -> str:
-        payload = {
-            "model": self.secrets.llm_model,
-            "temperature": self.config.llm.temperature,
-            "messages": [
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": user_content},
-            ],
-        }
-        data = await self._post_llm("chat/completions", payload)
+        payload_variants = [
+            {
+                "model": self.secrets.llm_model,
+                "temperature": self.config.llm.temperature,
+                "messages": [
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": user_content},
+                ],
+            },
+            {
+                "model": self.secrets.llm_model,
+                "messages": [
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": user_content},
+                ],
+            },
+        ]
+        data = await self._post_llm_with_variants("chat/completions", payload_variants)
         text = self._extract_chat_text(data)
         if not text:
             raise ValueError("chat/completions 返回成功，但没有可用文本。")
         return text
 
     async def _call_responses(self, prompt: str, user_content: str) -> str:
-        payload = {
-            "model": self.secrets.llm_model,
-            "temperature": self.config.llm.temperature,
-            "instructions": prompt,
-            "input": user_content,
-        }
-        data = await self._post_llm("responses", payload)
+        payload_variants = [
+            {
+                "model": self.secrets.llm_model,
+                "temperature": self.config.llm.temperature,
+                "instructions": prompt,
+                "input": user_content,
+            },
+            {
+                "model": self.secrets.llm_model,
+                "instructions": prompt,
+                "input": user_content,
+            },
+            {
+                "model": self.secrets.llm_model,
+                "temperature": self.config.llm.temperature,
+                "input": [
+                    {"role": "system", "content": [{"type": "input_text", "text": prompt}]},
+                    {"role": "user", "content": [{"type": "input_text", "text": user_content}]},
+                ],
+            },
+            {
+                "model": self.secrets.llm_model,
+                "input": [
+                    {"role": "system", "content": [{"type": "input_text", "text": prompt}]},
+                    {"role": "user", "content": [{"type": "input_text", "text": user_content}]},
+                ],
+            },
+            {
+                "model": self.secrets.llm_model,
+                "input": [
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": user_content},
+                ],
+            },
+        ]
+        data = await self._post_llm_with_variants("responses", payload_variants)
         text = self._extract_responses_text(data)
         if not text:
             raise ValueError("responses 返回成功，但没有可用文本。")
